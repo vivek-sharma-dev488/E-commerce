@@ -15,9 +15,11 @@ export function CartPage() {
   const user = useAuthStore((state) => state.user)
 
   const items = useCartStore((state) => state.items)
-  const cartItems = useCartStore((state) => state.getCartItems())
-  const savedItems = useCartStore((state) => state.getSavedItems())
-  const summary = useCartStore((state) => state.getSummary())
+  const _couponCode = useCartStore((state) => state.couponCode)
+  const _shippingFee = useCartStore((state) => state.shippingFee)
+  const getCartItems = useCartStore((state) => state.getCartItems)
+  const getSavedItems = useCartStore((state) => state.getSavedItems)
+  const getSummary = useCartStore((state) => state.getSummary)
   const removeFromCart = useCartStore((state) => state.removeFromCart)
   const updateQuantity = useCartStore((state) => state.updateQuantity)
   const toggleSaveForLater = useCartStore((state) => state.toggleSaveForLater)
@@ -25,6 +27,10 @@ export function CartPage() {
   const clearCoupon = useCartStore((state) => state.clearCoupon)
   const syncCartToServer = useCartStore((state) => state.syncCartToServer)
   const saveAbandonedCart = useCartStore((state) => state.saveAbandonedCart)
+
+  const cartItems = getCartItems()
+  const savedItems = getSavedItems()
+  const summary = getSummary()
 
   const [couponInput, setCouponInput] = useState('')
 

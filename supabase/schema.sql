@@ -7,7 +7,7 @@ create extension if not exists pgcrypto;
 -- Enums
 -- ============================================================================
 
-create type public.user_role as enum ('user', 'admin');
+create type public.user_role as enum ('user', 'admin', 'retailer');
 create type public.order_status as enum (
   'ordered',
   'packed',
@@ -72,13 +72,32 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  assigned_role public.user_role;
+  requested_role text;
+  privileged_role text;
 begin
+  requested_role := coalesce(new.raw_user_meta_data ->> 'role', '');
+  privileged_role := coalesce(new.raw_app_meta_data ->> 'role', '');
+
+  assigned_role := 'user'::public.user_role;
+
+  if requested_role = 'retailer' then
+    assigned_role := 'retailer'::public.user_role;
+  end if;
+
+  if privileged_role = 'admin' then
+    assigned_role := 'admin'::public.user_role;
+  elsif privileged_role = 'retailer' then
+    assigned_role := 'retailer'::public.user_role;
+  end if;
+
   insert into public.users (id, email, full_name, role, referral_code)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
-    coalesce((new.raw_user_meta_data ->> 'role')::public.user_role, 'user'),
+    assigned_role,
     upper(substr(md5(new.id::text), 1, 8))
   )
   on conflict (id) do nothing;
@@ -546,6 +565,59 @@ alter table public.replacement_requests enable row level security;
 alter table public.notifications enable row level security;
 alter table public.inventory_logs enable row level security;
 
+-- Admin helper
+-- Supabase access tokens include `role` like `anon`/`authenticated` (not your app's user role).
+-- Use the role stored in public.users for admin access checks.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users
+    where id = auth.uid()
+      and role = 'admin'
+  );
+$$;
+
+grant execute on function public.is_admin() to anon, authenticated;
+
+create or replace function public.is_retailer()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users
+    where id = auth.uid()
+      and role = 'retailer'
+  );
+$$;
+
+create or replace function public.is_staff()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users
+    where id = auth.uid()
+      and role in ('admin', 'retailer')
+  );
+$$;
+
+grant execute on function public.is_retailer() to anon, authenticated;
+grant execute on function public.is_staff() to anon, authenticated;
+
 -- Public read catalog
 create policy "catalog_read_categories" on public.categories
 for select using (is_active = true);
@@ -558,11 +630,15 @@ for select using (true);
 
 -- users table
 create policy "users_read_own" on public.users
-for select using (auth.uid() = id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = id or public.is_admin());
 
 create policy "users_update_own" on public.users
-for update using (auth.uid() = id or (auth.jwt() ->> 'role') = 'admin')
-with check (auth.uid() = id or (auth.jwt() ->> 'role') = 'admin');
+for update using (auth.uid() = id)
+with check (auth.uid() = id and role = 'user');
+
+create policy "users_update_admin" on public.users
+for update using (public.is_admin())
+with check (public.is_admin());
 
 -- user-owned data
 create policy "cart_items_owner_all" on public.cart_items
@@ -570,6 +646,9 @@ for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "abandoned_carts_owner_all" on public.abandoned_carts
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "abandoned_carts_admin_read" on public.abandoned_carts
+for select using (public.is_staff());
 
 create policy "wishlist_owner_all" on public.wishlist
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -581,21 +660,21 @@ create policy "addresses_owner_all" on public.addresses
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "orders_owner_read" on public.orders
-for select using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = user_id or public.is_staff());
 
 create policy "orders_owner_insert" on public.orders
 for insert with check (auth.uid() = user_id);
 
 create policy "orders_admin_update" on public.orders
-for update using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for update using (public.is_staff())
+with check (public.is_staff());
 
 create policy "order_items_owner_read" on public.order_items
 for select using (
   exists (
     select 1 from public.orders o
     where o.id = order_id
-      and (o.user_id = auth.uid() or (auth.jwt() ->> 'role') = 'admin')
+      and (o.user_id = auth.uid() or public.is_staff())
   )
 );
 
@@ -609,14 +688,14 @@ for insert with check (
 );
 
 create policy "payments_owner_read" on public.payments
-for select using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = user_id or public.is_staff());
 
 create policy "payments_owner_insert" on public.payments
 for insert with check (auth.uid() = user_id);
 
 create policy "payments_admin_update" on public.payments
-for update using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for update using (public.is_staff())
+with check (public.is_staff());
 
 create policy "reviews_public_read" on public.reviews
 for select using (true);
@@ -625,8 +704,8 @@ create policy "reviews_owner_insert" on public.reviews
 for insert with check (auth.uid() = user_id);
 
 create policy "reviews_owner_update" on public.reviews
-for update using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin')
-with check (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for update using (auth.uid() = user_id or public.is_admin())
+with check (auth.uid() = user_id or public.is_admin());
 
 create policy "review_votes_owner_all" on public.review_helpful_votes
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -638,67 +717,67 @@ create policy "questions_owner_insert" on public.questions
 for insert with check (auth.uid() = user_id);
 
 create policy "questions_owner_or_admin_update" on public.questions
-for update using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin')
-with check (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for update using (auth.uid() = user_id or public.is_admin())
+with check (auth.uid() = user_id or public.is_admin());
 
 create policy "user_rewards_owner_read" on public.user_rewards
-for select using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = user_id or public.is_admin());
 
 create policy "referrals_owner_read" on public.referrals
 for select using (
   auth.uid() = referrer_user_id
   or auth.uid() = referee_user_id
-  or (auth.jwt() ->> 'role') = 'admin'
+  or public.is_admin()
 );
 
 create policy "notifications_owner_all" on public.notifications
-for all using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin')
-with check (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for all using (auth.uid() = user_id or public.is_admin())
+with check (auth.uid() = user_id or public.is_admin());
 
 create policy "refund_owner_read_insert" on public.refund_requests
-for select using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = user_id or public.is_admin());
 
 create policy "refund_owner_insert" on public.refund_requests
 for insert with check (auth.uid() = user_id);
 
 create policy "refund_admin_update" on public.refund_requests
-for update using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for update using (public.is_admin())
+with check (public.is_admin());
 
 create policy "replacement_owner_read_insert" on public.replacement_requests
-for select using (auth.uid() = user_id or (auth.jwt() ->> 'role') = 'admin');
+for select using (auth.uid() = user_id or public.is_admin());
 
 create policy "replacement_owner_insert" on public.replacement_requests
 for insert with check (auth.uid() = user_id);
 
 create policy "replacement_admin_update" on public.replacement_requests
-for update using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for update using (public.is_admin())
+with check (public.is_admin());
 
 create policy "inventory_logs_admin_read" on public.inventory_logs
-for select using ((auth.jwt() ->> 'role') = 'admin');
+for select using (public.is_staff());
 
 create policy "inventory_logs_admin_insert" on public.inventory_logs
-for insert with check ((auth.jwt() ->> 'role') = 'admin');
+for insert with check (public.is_staff());
 
 create policy "coupons_public_read_active" on public.coupons
-for select using (is_active = true or (auth.jwt() ->> 'role') = 'admin');
+for select using (is_active = true or public.is_admin());
 
 create policy "coupons_admin_write" on public.coupons
-for all using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for all using (public.is_admin())
+with check (public.is_admin());
 
 create policy "categories_admin_write" on public.categories
-for all using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for all using (public.is_admin())
+with check (public.is_admin());
 
 create policy "products_admin_write" on public.products
-for all using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for all using (public.is_staff())
+with check (public.is_staff());
 
 create policy "variants_admin_write" on public.variants
-for all using ((auth.jwt() ->> 'role') = 'admin')
-with check ((auth.jwt() ->> 'role') = 'admin');
+for all using (public.is_staff())
+with check (public.is_staff());
 
 -- ============================================================================
 -- Realtime subscriptions
@@ -728,23 +807,23 @@ for select using (bucket_id = 'product-images');
 create policy "product_images_admin_write" on storage.objects
 for insert with check (
   bucket_id = 'product-images'
-  and (auth.jwt() ->> 'role') = 'admin'
+  and public.is_staff()
 );
 
 create policy "product_images_admin_update" on storage.objects
 for update using (
   bucket_id = 'product-images'
-  and (auth.jwt() ->> 'role') = 'admin'
+  and public.is_staff()
 )
 with check (
   bucket_id = 'product-images'
-  and (auth.jwt() ->> 'role') = 'admin'
+  and public.is_staff()
 );
 
 create policy "product_images_admin_delete" on storage.objects
 for delete using (
   bucket_id = 'product-images'
-  and (auth.jwt() ->> 'role') = 'admin'
+  and public.is_staff()
 );
 
 create policy "avatars_public_read" on storage.objects
@@ -771,12 +850,12 @@ for select using (
   bucket_id = 'invoices'
   and (
     auth.uid()::text = (storage.foldername(name))[1]
-    or (auth.jwt() ->> 'role') = 'admin'
+    or public.is_admin()
   )
 );
 
 create policy "invoices_admin_write" on storage.objects
 for insert with check (
   bucket_id = 'invoices'
-  and (auth.jwt() ->> 'role') = 'admin'
+  and public.is_admin()
 );

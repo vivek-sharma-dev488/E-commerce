@@ -1,5 +1,7 @@
 import { getSupabaseClient } from './supabaseClient'
 
+const isEmailVerified = (user) => Boolean(user?.email_confirmed_at || user?.confirmed_at)
+
 export const authService = {
   async getSession() {
     const supabase = getSupabaseClient()
@@ -33,10 +35,26 @@ export const authService = {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/reset-password`,
+        emailRedirectTo: `${window.location.origin}/login`,
         data: {
           full_name: fullName,
           role: 'user',
+        },
+      },
+    })
+  },
+
+  async signUpRetailer({ email, password, fullName }) {
+    const supabase = getSupabaseClient()
+
+    return supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/retailer/login`,
+        data: {
+          full_name: fullName,
+          role: 'retailer',
         },
       },
     })
@@ -86,4 +104,6 @@ export const authService = {
       callback(event, session)
     })
   },
+
+  isEmailVerified,
 }

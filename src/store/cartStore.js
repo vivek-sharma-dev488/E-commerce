@@ -30,6 +30,33 @@ const calculateCouponDiscount = (subtotal, couponCode) => {
   return 0
 }
 
+const areCartItemsEqual = (currentItems, incomingItems) => {
+  if (currentItems === incomingItems) {
+    return true
+  }
+
+  if (currentItems.length !== incomingItems.length) {
+    return false
+  }
+
+  return currentItems.every((currentItem, index) => {
+    const incomingItem = incomingItems[index]
+
+    if (!incomingItem) {
+      return false
+    }
+
+    return (
+      currentItem.id === incomingItem.id &&
+      currentItem.quantity === incomingItem.quantity &&
+      currentItem.savedForLater === incomingItem.savedForLater &&
+      currentItem.selectedSize === incomingItem.selectedSize &&
+      currentItem.selectedColor === incomingItem.selectedColor &&
+      currentItem.product?.id === incomingItem.product?.id
+    )
+  })
+}
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
@@ -162,6 +189,10 @@ export const useCartStore = create(
 
       hydrateFromServer: (serverItems) => {
         if (!Array.isArray(serverItems)) {
+          return
+        }
+
+        if (areCartItemsEqual(get().items, serverItems)) {
           return
         }
 

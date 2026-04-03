@@ -19,9 +19,9 @@ const schema = z
     path: ['confirmPassword'],
   })
 
-export function SignupPage() {
+export function RetailerSignupPage() {
   const navigate = useNavigate()
-  const signUp = useAuthStore((state) => state.signUp)
+  const signUpRetailer = useAuthStore((state) => state.signUpRetailer)
   const isLoading = useAuthStore((state) => state.isLoading)
 
   const {
@@ -39,21 +39,21 @@ export function SignupPage() {
   })
 
   const onSubmit = async (values) => {
-    const { error } = await signUp(values)
+    const { error } = await signUpRetailer(values)
 
     if (error) {
       toast.error(error.message)
       return
     }
 
-    toast.success('Account created. Check your email and verify it before logging in.')
-    navigate('/login')
+    toast.success('Retailer account created. Verify your email before signing in.')
+    navigate('/retailer/login')
   }
 
   return (
     <AuthShell
-      subtitle="Create your account to unlock loyalty points, personalized recommendations, and faster checkout."
-      title="Create account"
+      subtitle="Create a retailer account to manage products, inventory, and orders."
+      title="Create retailer account"
     >
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div>
@@ -114,13 +114,13 @@ export function SignupPage() {
         </div>
 
         <Button className="w-full" disabled={isLoading} type="submit">
-          {isLoading ? 'Creating...' : 'Create account'}
+          {isLoading ? 'Creating...' : 'Create retailer account'}
         </Button>
 
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Already have an account?{' '}
-          <Link className="text-brand-600" to="/login">
-            Login
+          Already have a retailer account?{' '}
+          <Link className="text-brand-600" to="/retailer/login">
+            Sign in
           </Link>
         </p>
       </form>

@@ -37,6 +37,22 @@ export const useAuthStore = create((set, get) => ({
     const { data } = await authService.getSession()
     const session = data?.session || null
     const user = session?.user || null
+
+    if (user && !authService.isEmailVerified(user)) {
+      await authService.signOut('local')
+
+      set({
+        session: null,
+        user: null,
+        role: USER_ROLES.USER,
+        isInitialized: true,
+        isLoading: false,
+        authError: null,
+      })
+
+      return
+    }
+
     const role = user ? await authService.getUserRole(user.id) : USER_ROLES.USER
 
     set({
@@ -58,10 +74,39 @@ export const useAuthStore = create((set, get) => ({
       return { data: null, error }
     }
 
+    // Keep new users signed out until their email is verified.
+    if (data?.session) {
+      await authService.signOut('local')
+    }
+
     set({
-      session: data?.session || null,
-      user: data?.user || null,
-      role: deriveRole(data?.user, null),
+      session: null,
+      user: null,
+      role: USER_ROLES.USER,
+      isLoading: false,
+    })
+
+    return { data, error: null }
+  },
+
+  signUpRetailer: async (payload) => {
+    set({ isLoading: true, authError: null })
+    const { data, error } = await authService.signUpRetailer(payload)
+
+    if (error) {
+      set({ isLoading: false, authError: error.message })
+      return { data: null, error }
+    }
+
+    // Keep new users signed out until their email is verified.
+    if (data?.session) {
+      await authService.signOut('local')
+    }
+
+    set({
+      session: null,
+      user: null,
+      role: USER_ROLES.USER,
       isLoading: false,
     })
 
@@ -75,6 +120,24 @@ export const useAuthStore = create((set, get) => ({
     if (error) {
       set({ isLoading: false, authError: error.message })
       return { data: null, error }
+    }
+
+    if (!authService.isEmailVerified(data?.user)) {
+      await authService.signOut('local')
+
+      const verificationError = new Error(
+        'Please verify your email before logging in. Check your inbox for the confirmation link.',
+      )
+
+      set({
+        session: null,
+        user: null,
+        role: USER_ROLES.USER,
+        isLoading: false,
+        authError: verificationError.message,
+      })
+
+      return { data: null, error: verificationError }
     }
 
     const role = await authService.getUserRole(data?.user?.id)

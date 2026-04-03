@@ -1,6 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 export function AuthShell({ title, subtitle, children }) {
+  const location = useLocation()
+  const isAdminLogin = location.pathname === '/admin/login'
+  const isRetailerLogin = location.pathname === '/retailer/login'
+
   return (
     <div className="mx-auto grid min-h-[75vh] max-w-5xl items-center gap-8 md:grid-cols-2">
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-soft dark:border-slate-700 dark:bg-slate-900">
@@ -25,9 +29,29 @@ export function AuthShell({ title, subtitle, children }) {
           <li>Scalable Supabase-first architecture</li>
           <li>Optimized mobile and desktop checkout flows</li>
         </ul>
-        <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">
-          Need admin access? <Link className="text-brand-600" to="/admin/login">Sign in here</Link>
-        </p>
+        {isAdminLogin || isRetailerLogin ? (
+          <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">
+            Need customer access?{' '}
+            <Link className="text-brand-600" to="/login">
+              Sign in here
+            </Link>
+          </p>
+        ) : (
+          <div className="mt-8 space-y-2 text-sm text-slate-500 dark:text-slate-400">
+            <p>
+              Need admin access?{' '}
+              <Link className="text-brand-600" to="/admin/login">
+                Sign in here
+              </Link>
+            </p>
+            <p>
+              Need retailer access?{' '}
+              <Link className="text-brand-600" to="/retailer/login">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

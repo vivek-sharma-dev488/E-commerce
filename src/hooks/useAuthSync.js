@@ -27,6 +27,18 @@ export const useAuthSync = () => {
       data: { subscription },
     } = authService.onAuthChange(async (_event, session) => {
       const user = session?.user || null
+
+      if (user && !authService.isEmailVerified(user)) {
+        // Avoid signOut recursion from auth listeners; keep app state unauthenticated.
+        setAuthState({
+          session: null,
+          user: null,
+          role: 'user',
+        })
+        hydrateFromServer([])
+        return
+      }
+
       const role = user ? await authService.getUserRole(user.id) : 'user'
 
       const serverCart = user?.id ? await cartService.fetchCart(user.id) : []

@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import { corsHeaders, handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { requireUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts'

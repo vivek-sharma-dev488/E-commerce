@@ -1,0 +1,23 @@
+import { useEffect } from 'react'
+import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
+import { USER_ROLES } from '../../lib/constants'
+import { useAuthStore } from '../../store/authStore'
+import { LoginPage } from './LoginPage'
+
+export function RetailerLoginPage() {
+  const navigate = useNavigate()
+  const role = useAuthStore((state) => state.role)
+
+  useEffect(() => {
+    if (role === USER_ROLES.RETAILER) {
+      navigate('/retailer', { replace: true })
+    }
+  }, [role, navigate])
+
+  useEffect(() => {
+    toast('Use an account with retailer role to access retailer console.')
+  }, [])
+
+  return <LoginPage />
+}

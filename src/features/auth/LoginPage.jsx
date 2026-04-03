@@ -19,6 +19,17 @@ export function LoginPage() {
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle)
   const isLoading = useAuthStore((state) => state.isLoading)
 
+  const fallbackRedirect =
+    location.pathname === '/admin/login'
+      ? '/admin'
+      : location.pathname === '/retailer/login'
+        ? '/retailer'
+        : '/'
+
+  const isRetailerLogin = location.pathname === '/retailer/login'
+  const signupPath = isRetailerLogin ? '/retailer/signup' : '/signup'
+  const signupLabel = isRetailerLogin ? 'Create retailer account' : 'Create account'
+
   const {
     register,
     handleSubmit,
@@ -40,7 +51,7 @@ export function LoginPage() {
     }
 
     toast.success('Welcome back')
-    navigate(location.state?.from?.pathname || '/')
+    navigate(location.state?.from?.pathname || fallbackRedirect)
   }
 
   const handleGoogleSignIn = async () => {
@@ -52,7 +63,7 @@ export function LoginPage() {
     }
 
     toast.success('Signed in with Google')
-    navigate('/')
+    navigate(location.state?.from?.pathname || fallbackRedirect)
   }
 
   return (
@@ -101,8 +112,8 @@ export function LoginPage() {
           <Link className="text-brand-600" to="/forgot-password">
             Forgot password?
           </Link>
-          <Link className="text-brand-600" to="/signup">
-            Create account
+          <Link className="text-brand-600" to={signupPath}>
+            {signupLabel}
           </Link>
         </div>
       </form>

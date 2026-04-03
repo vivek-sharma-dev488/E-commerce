@@ -17,9 +17,15 @@ export function CheckoutPage() {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
 
-  const cartItems = useCartStore((state) => state.getCartItems())
-  const summary = useCartStore((state) => state.getSummary())
+  const _items = useCartStore((state) => state.items)
+  const _couponCode = useCartStore((state) => state.couponCode)
+  const _shippingFee = useCartStore((state) => state.shippingFee)
+  const getCartItems = useCartStore((state) => state.getCartItems)
+  const getSummary = useCartStore((state) => state.getSummary)
   const clearCart = useCartStore((state) => state.clearCart)
+
+  const cartItems = getCartItems()
+  const summary = getSummary()
 
   const [addresses, setAddresses] = useState([])
   const [selectedAddressId, setSelectedAddressId] = useState('')

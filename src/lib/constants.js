@@ -7,6 +7,7 @@ export const DEFAULT_TAX_RATE = 0.18
 export const USER_ROLES = {
   USER: 'user',
   ADMIN: 'admin',
+  RETAILER: 'retailer',
 }
 
 export const ORDER_STATUSES = [

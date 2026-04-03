@@ -27,34 +27,73 @@ export function UsersManagementPage() {
     }
   }, [])
 
-  const updateRole = (userId, role) => {
+  const updateRole = async (userId, nextRole) => {
+    const previousUser = users.find((user) => user.id === userId)
+    const previousRole = previousUser?.role
+
     setUsers((state) =>
       state.map((user) =>
         user.id === userId
           ? {
               ...user,
-              role,
+              role: nextRole,
             }
           : user,
       ),
     )
 
-    toast.success('User role updated')
+    try {
+      await adminService.updateUserRole(userId, nextRole)
+      toast.success('User role updated')
+    } catch (error) {
+      setUsers((state) =>
+        state.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
+                role: previousRole,
+              }
+            : user,
+        ),
+      )
+
+      toast.error(error.message)
+    }
   }
 
-  const grantLoyaltyBonus = (userId) => {
+  const grantLoyaltyBonus = async (userId) => {
+    const previousUser = users.find((user) => user.id === userId)
+    const previousPoints = Number(previousUser?.loyalty_points || 0)
+    const nextPoints = previousPoints + 100
+
     setUsers((state) =>
       state.map((user) =>
         user.id === userId
           ? {
               ...user,
-              loyalty_points: Number(user.loyalty_points || 0) + 100,
+              loyalty_points: nextPoints,
             }
           : user,
       ),
     )
 
-    toast.success('Loyalty bonus granted')
+    try {
+      await adminService.updateUserLoyaltyPoints(userId, nextPoints)
+      toast.success('Loyalty bonus granted')
+    } catch (error) {
+      setUsers((state) =>
+        state.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
+                loyalty_points: previousPoints,
+              }
+            : user,
+        ),
+      )
+
+      toast.error(error.message)
+    }
   }
 
   return (
@@ -81,6 +120,7 @@ export function UsersManagementPage() {
             >
               <option value={USER_ROLES.USER}>user</option>
               <option value={USER_ROLES.ADMIN}>admin</option>
+              <option value={USER_ROLES.RETAILER}>retailer</option>
             </select>
             <Button onClick={() => grantLoyaltyBonus(user.id)} variant="outline">
               +100 Loyalty Points

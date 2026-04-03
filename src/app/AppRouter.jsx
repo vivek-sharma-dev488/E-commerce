@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
 import { AdminRoute } from '../routes/AdminRoute'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
+import { RetailerRoute } from '../routes/RetailerRoute'
 
 const HomePage = lazy(() => import('../features/home/HomePage').then((module) => ({ default: module.HomePage })))
 const CatalogPage = lazy(() => import('../features/catalog/CatalogPage').then((module) => ({ default: module.CatalogPage })))
@@ -12,6 +13,8 @@ const SignupPage = lazy(() => import('../features/auth/SignupPage').then((module
 const ForgotPasswordPage = lazy(() => import('../features/auth/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('../features/auth/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })))
 const AdminLoginPage = lazy(() => import('../features/auth/AdminLoginPage').then((module) => ({ default: module.AdminLoginPage })))
+const RetailerLoginPage = lazy(() => import('../features/auth/RetailerLoginPage').then((module) => ({ default: module.RetailerLoginPage })))
+const RetailerSignupPage = lazy(() => import('../features/auth/RetailerSignupPage').then((module) => ({ default: module.RetailerSignupPage })))
 const CartPage = lazy(() => import('../features/cart/CartPage').then((module) => ({ default: module.CartPage })))
 const CheckoutPage = lazy(() => import('../features/checkout/CheckoutPage').then((module) => ({ default: module.CheckoutPage })))
 const MyOrdersPage = lazy(() => import('../features/orders/MyOrdersPage').then((module) => ({ default: module.MyOrdersPage })))
@@ -64,6 +67,8 @@ export function AppRouter() {
       <Route element={<LayoutRoute Component={ForgotPasswordPage} />} path="/forgot-password" />
       <Route element={<LayoutRoute Component={ResetPasswordPage} />} path="/reset-password" />
       <Route element={<LayoutRoute Component={AdminLoginPage} />} path="/admin/login" />
+      <Route element={<LayoutRoute Component={RetailerLoginPage} />} path="/retailer/login" />
+      <Route element={<LayoutRoute Component={RetailerSignupPage} />} path="/retailer/signup" />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<LayoutRoute Component={CartPage} />} path="/cart" />
@@ -80,6 +85,12 @@ export function AppRouter() {
         <Route element={<LayoutRoute Component={ProductManagementPage} />} path="/admin/products" />
         <Route element={<LayoutRoute Component={OrdersManagementPage} />} path="/admin/orders" />
         <Route element={<LayoutRoute Component={UsersManagementPage} />} path="/admin/users" />
+      </Route>
+
+      <Route element={<RetailerRoute />}>
+        <Route element={<LayoutRoute Component={AdminDashboardPage} />} path="/retailer" />
+        <Route element={<LayoutRoute Component={ProductManagementPage} />} path="/retailer/products" />
+        <Route element={<LayoutRoute Component={OrdersManagementPage} />} path="/retailer/orders" />
       </Route>
 
       <Route element={<Navigate replace to="/" />} path="/home" />

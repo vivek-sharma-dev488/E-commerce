@@ -1,26 +1,32 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
 import { SectionTitle } from '../../components/common/SectionTitle'
-import { ORDER_STATUSES } from '../../lib/constants'
+import { ORDER_STATUSES, USER_ROLES } from '../../lib/constants'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import { adminService } from '../../services/adminService'
 import { orderService } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
 
 export function OrdersManagementPage() {
-  const user = useAuthStore((state) => state.user)
+  const role = useAuthStore((state) => state.role)
+  const isRetailer = role === USER_ROLES.RETAILER
   const [orders, setOrders] = useState([])
 
   useEffect(() => {
     let cancelled = false
 
     const loadOrders = async () => {
-      const data = await adminService.fetchOrders()
+      try {
+        const data = await adminService.fetchOrders()
 
-      if (!cancelled) {
-        setOrders(data)
+        if (!cancelled) {
+          setOrders(data)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(error.message)
+        }
       }
     }
 
@@ -54,42 +60,20 @@ export function OrdersManagementPage() {
     toast.success('Order status updated')
   }
 
-  const handleRefund = async (orderId) => {
-    const { error } = await orderService.requestRefund(
-      orderId,
-      'Admin initiated refund',
-      user?.id,
-    )
-
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-
-    toast.success('Refund request logged')
-  }
-
-  const handleReplacement = async (orderId) => {
-    const { error } = await orderService.requestReplacement(
-      orderId,
-      'Admin initiated replacement',
-      user?.id,
-    )
-
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-
-    toast.success('Replacement request logged')
-  }
+  const title = isRetailer ? 'Order Fulfillment Console' : 'Order Operations'
+  const subtitle = isRetailer
+    ? 'Process order pipelines and keep dispatch status accurate.'
+    : 'Manage order lifecycle and shipment status across the platform.'
 
   return (
     <div className="space-y-5">
-      <SectionTitle
-        subtitle="Order status, refunds, and replacement workflows"
-        title="Order Operations"
-      />
+      <SectionTitle subtitle={subtitle} title={title} />
+
+      {!orders.length ? (
+        <Card className="p-5">
+          <p className="text-sm text-slate-500">No orders available right now.</p>
+        </Card>
+      ) : null}
 
       {orders.map((order) => (
         <Card className="space-y-3 p-4" key={order.id}>
@@ -103,10 +87,11 @@ export function OrdersManagementPage() {
               <p className="font-semibold text-slate-900 dark:text-slate-100">
                 {formatCurrency(order.total || order.total_amount)}
               </p>
+              <p className="text-xs text-slate-500">Payment: {order.payment_status || 'pending'}</p>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+          <div className="grid gap-3 sm:grid-cols-1">
             <select
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
               onChange={(event) => updateStatus(order.id, event.target.value)}
@@ -119,12 +104,6 @@ export function OrdersManagementPage() {
               ))}
               <option value="cancelled">cancelled</option>
             </select>
-            <Button onClick={() => handleRefund(order.id)} variant="outline">
-              Refund
-            </Button>
-            <Button onClick={() => handleReplacement(order.id)} variant="outline">
-              Replacement
-            </Button>
           </div>
         </Card>
       ))}
