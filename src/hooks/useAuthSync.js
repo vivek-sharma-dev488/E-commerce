@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { authService } from '../services/authService'
 import { cartService } from '../services/cartService'
+import { consumePendingAddToCart } from '../lib/pendingAddToCart'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 
@@ -50,6 +52,15 @@ export const useAuthSync = () => {
       })
 
       hydrateFromServer(serverCart)
+
+      if (user?.id) {
+        const pending = consumePendingAddToCart()
+
+        if (pending?.product) {
+          useCartStore.getState().addToCart(pending.product, pending.payload)
+          toast.success('Added to cart')
+        }
+      }
     })
 
     return () => {

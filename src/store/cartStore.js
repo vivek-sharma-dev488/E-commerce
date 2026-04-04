@@ -7,6 +7,7 @@ import {
   FREE_SHIPPING_THRESHOLD,
 } from '../lib/constants'
 import { cartService } from '../services/cartService'
+import { useAuthStore } from './authStore'
 
 const calculateCouponDiscount = (subtotal, couponCode) => {
   if (!couponCode) {
@@ -65,6 +66,12 @@ export const useCartStore = create(
       shippingFee: DEFAULT_SHIPPING_FEE,
 
       addToCart: (product, payload = {}) => {
+        const user = useAuthStore.getState().user
+
+        if (!user) {
+          return false
+        }
+
         const { selectedSize, selectedColor, quantity = 1 } = payload
 
         set((state) => {
@@ -103,6 +110,8 @@ export const useCartStore = create(
             ],
           }
         })
+
+        return true
       },
 
       removeFromCart: (itemId) =>

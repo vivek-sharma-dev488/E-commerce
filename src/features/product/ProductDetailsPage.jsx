@@ -1,7 +1,7 @@
 import { Heart, Share2, ShoppingBag, Star } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '../../components/common/Badge'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
@@ -9,8 +9,10 @@ import { EmptyState } from '../../components/common/EmptyState'
 import { SectionTitle } from '../../components/common/SectionTitle'
 import { ProductCard } from '../../components/product/ProductCard'
 import { ProductGallery } from '../../components/product/ProductGallery'
+import { setPendingAddToCart } from '../../lib/pendingAddToCart'
 import { formatCurrency, formatDate, getDeliveryEstimate } from '../../lib/utils'
 import { productService } from '../../services/productService'
+import { useAuthStore } from '../../store/authStore'
 import { useCartStore } from '../../store/cartStore'
 import { useCatalogStore } from '../../store/catalogStore'
 import { useWishlistStore } from '../../store/wishlistStore'
@@ -18,6 +20,10 @@ import { useWishlistStore } from '../../store/wishlistStore'
 export function ProductDetailsPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const user = useAuthStore((state) => state.user)
+  const isInitialized = useAuthStore((state) => state.isInitialized)
+  const isLoading = useAuthStore((state) => state.isLoading)
   const addToCart = useCartStore((state) => state.addToCart)
   const addRecentlyViewed = useCatalogStore((state) => state.addRecentlyViewed)
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist)
@@ -83,8 +89,31 @@ export function ProductDetailsPage() {
 
   const isWishlisted = product ? hasItem(product.id) : false
 
-  const handleAddToCart = () => {
+  const handleAddToCart = ({ redirectTo } = {}) => {
     if (!product) {
+      return
+    }
+
+    if (!isInitialized || isLoading) {
+      toast('Please wait...')
+      return
+    }
+
+    if (!user) {
+      setPendingAddToCart(product, {
+        selectedSize,
+        selectedColor,
+        quantity: 1,
+      })
+
+      toast.error('Please login to add items to cart')
+      navigate('/login', {
+        state: {
+          from: redirectTo
+            ? { pathname: redirectTo }
+            : location,
+        },
+      })
       return
     }
 
@@ -98,8 +127,11 @@ export function ProductDetailsPage() {
   }
 
   const handleBuyNow = () => {
-    handleAddToCart()
-    navigate('/checkout')
+    handleAddToCart({ redirectTo: '/checkout' })
+
+    if (user) {
+      navigate('/checkout')
+    }
   }
 
   const handleShare = async () => {

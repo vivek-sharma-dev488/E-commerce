@@ -1,6 +1,9 @@
 import { Heart, ShoppingCart, Star } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { setPendingAddToCart } from '../../lib/pendingAddToCart'
 import { calculateDiscount, formatCurrency } from '../../lib/utils'
+import { useAuthStore } from '../../store/authStore'
 import { useCartStore } from '../../store/cartStore'
 import { useWishlistStore } from '../../store/wishlistStore'
 import { Badge } from '../common/Badge'
@@ -8,12 +11,34 @@ import { Button } from '../common/Button'
 import { Card } from '../common/Card'
 
 export function ProductCard({ product }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = useAuthStore((state) => state.user)
+  const isInitialized = useAuthStore((state) => state.isInitialized)
+  const isLoading = useAuthStore((state) => state.isLoading)
   const addToCart = useCartStore((state) => state.addToCart)
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist)
   const hasItem = useWishlistStore((state) => state.hasItem)
 
   const discount = calculateDiscount(product.price, product.compareAtPrice)
   const isWishlisted = hasItem(product.id)
+
+  const handleAddToCart = () => {
+    if (!isInitialized || isLoading) {
+      toast('Please wait...')
+      return
+    }
+
+    if (!user) {
+      setPendingAddToCart(product)
+      toast.error('Please login to add items to cart')
+      navigate('/login', { state: { from: location } })
+      return
+    }
+
+    addToCart(product)
+    toast.success('Added to cart')
+  }
 
   return (
     <Card className="group overflow-hidden p-0">
@@ -80,7 +105,7 @@ export function ProductCard({ product }) {
         <Button
           className="w-full"
           disabled={product.stock <= 0}
-          onClick={() => addToCart(product)}
+          onClick={handleAddToCart}
         >
           <ShoppingCart className="mr-2 h-4 w-4" />
           {product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
