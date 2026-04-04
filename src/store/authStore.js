@@ -152,9 +152,9 @@ export const useAuthStore = create((set, get) => ({
     return { data, error: null }
   },
 
-  signInWithGoogle: async () => {
+  signInWithGoogle: async (redirectPath = '/') => {
     set({ isLoading: true, authError: null })
-    const { data, error } = await authService.signInWithGoogle()
+    const { data, error } = await authService.signInWithGoogle(redirectPath)
 
     if (error) {
       set({ isLoading: false, authError: error.message })

@@ -16,6 +16,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const signIn = useAuthStore((state) => state.signIn)
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle)
   const isLoading = useAuthStore((state) => state.isLoading)
 
   const fallbackRedirect =
@@ -53,8 +54,13 @@ export function LoginPage() {
     navigate(location.state?.from?.pathname || fallbackRedirect)
   }
 
-  const handleGoogleSignIn = () => {
-    toast('Coming soon aur sojjao ab')
+  const handleGoogleSignIn = async () => {
+    const redirectTarget = location.state?.from?.pathname || fallbackRedirect
+    const { error } = await signInWithGoogle(redirectTarget)
+
+    if (error) {
+      toast.error(error.message)
+    }
   }
 
   return (

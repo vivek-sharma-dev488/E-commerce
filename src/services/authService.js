@@ -66,13 +66,14 @@ export const authService = {
     return supabase.auth.signInWithPassword({ email, password })
   },
 
-  async signInWithGoogle() {
+  async signInWithGoogle(redirectPath = '/') {
     const supabase = getSupabaseClient()
+    const redirectTo = new URL(redirectPath, window.location.origin).toString()
 
     return supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo,
       },
     })
   },
